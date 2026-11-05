@@ -4,13 +4,15 @@
   "type": "module",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node --watch server.js"
+    "start": "bun server.js",
+    "dev": "bun --watch server.js",
+    "db:up": "docker compose up -d mongo",
+    "db:down": "docker compose down"
   },
   "author": "",
   "license": "ISC",
-  "description": "Learning backend development with Node.js + Express",
+  "description": "Learning backend development with Bun + Express + MongoDB (Docker)",
   "dependencies": {
-    "express": "^5.3.0"
+    "mongodb": "^7.8.0"
   }
 }

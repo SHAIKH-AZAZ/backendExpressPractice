@@ -1,50 +1,71 @@
-// DATA LAYER — the "database".
-// This file knows NOTHING about HTTP, req, res, or status codes.
-// Its only job: store and manipulate data.
+// DATA LAYER — MongoDB queries.
+// Same 6 exported functions as before (findAll, findById, ...), but now
+// they're async because the database lives in another process.
+// No controller knows anything about MongoDB.
 
-export const users = [
-  { id: 1, name: "Azaz", email: "azaz@example.com" },
-  { id: 2, name: "Rahul", email: "rahul@example.com" },
-];
+import { ObjectId } from "mongodb";
+import { getDb } from "./db.js";
+
+const users = () => getDb().collection("users");
+
+// ---------- Shape translation ----------
+// Database docs look like { _id: ObjectId, name, email, createdAt }
+// Our API answers look like { id, name, email }.
+// This is the ONLY place that knows both shapes.
+
+function toApi(doc) {
+  if (!doc) return null;
+  return { id: doc._id.toString(), name: doc.name, email: doc.email };
+}
+
+// A URL param is a string; Mongo needs an ObjectId.
+// Garbage in the URL → null → controller replies 404 (not a crash).
+function toOid(id) {
+  return ObjectId.isValid(id) ? new ObjectId(id) : null;
+}
 
 // ---------- Queries ----------
 
-export function findAll() {
-  return users;
+export async function findAll() {
+  const docs = await users().find().sort({ _id: 1 }).toArray();
+  return docs.map(toApi);
 }
 
-export function findById(id) {
-  return users.find((u) => u.id === id);
+export async function findById(id) {
+  const oid = toOid(id);
+  if (!oid) return null;
+  return toApi(await users().findOne({ _id: oid }));
 }
 
-export function findByEmail(email) {
-  return users.find((u) => u.email === email);
+export async function findByEmail(email) {
+  return toApi(await users().findOne({ email }));
 }
 
 // ---------- Mutations ----------
 
-export function create({ name, email }) {
-  // Math.max over every existing id + 1 → never produces a duplicate id
-  const id = users.length ? Math.max(...users.map((u) => u.id)) + 1 : 1;
-
-  const user = { id, name, email };
-  users.push(user);
-  return user;
+export async function create({ name, email }) {
+  const { insertedId } = await users().insertOne({
+    name,
+    email,
+    createdAt: new Date(),
+  });
+  return toApi(await users().findOne({ _id: insertedId }));
 }
 
-export function update(id, { name, email }) {
-  const user = findById(id);
-  if (!user) return null;
+export async function update(id, { name, email }) {
+  const oid = toOid(id);
+  if (!oid) return null;
 
-  user.name = name;
-  user.email = email;
-  return user;
+  const doc = await users().findOneAndUpdate(
+    { _id: oid },
+    { $set: { name, email, updatedAt: new Date() } },
+    { returnDocument: "after" } // return the NEW doc, not the old one
+  );
+  return toApi(doc);
 }
 
-export function remove(id) {
-  const index = users.findIndex((u) => u.id === id);
-  if (index === -1) return null;
-
-  const [deleted] = users.splice(index, 1);
-  return deleted;
+export async function remove(id) {
+  const oid = toOid(id);
+  if (!oid) return null;
+  return toApi(await users().findOneAndDelete({ _id: oid }));
 }

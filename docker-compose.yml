@@ -1,0 +1,22 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: backend-basics-mongo
+    ports:
+      - "27017:27017"
+    environment:
+      # Credentials come from .env — never hardcode secrets
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_DB}
+    volumes:
+      # Named volume = data survives `docker compose down`
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  mongo-data:
