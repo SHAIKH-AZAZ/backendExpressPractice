@@ -1,0 +1,5 @@
+name: Default
+variables:
+  baseUrl: http://localhost:3000
+  apiKey: my-secret-api-key
+  timeout: 5000
